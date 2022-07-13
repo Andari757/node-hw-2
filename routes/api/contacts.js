@@ -1,5 +1,5 @@
 const express = require('express');
-const Contact = require('../../models/contacts');
+const Contact = require('../../models/contact');
 
 const router = (
   express.Router()
@@ -62,7 +62,7 @@ router.put('/:contactId', async (req, res, next) => {
 });
 
 
-router.put('/:contactId/favorite', async (req, res, next) => {
+router.patch('/:contactId/favorite', async (req, res, next) => {
   const { favorite } = req.body;
   if (typeof favorite !== 'boolean') {
     res.status(400);

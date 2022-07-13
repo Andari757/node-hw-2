@@ -2,7 +2,7 @@
 const { model, Schema } = require('mongoose');
 
 
-const ContactSchema = new Schema({
+const contactSchema = new Schema({
     name: {
         type: String,
         required: [true, 'Set name for contact'],
@@ -23,7 +23,7 @@ const ContactSchema = new Schema({
 
 const Contact = model(
     'Contact',
-    ContactSchema,
+    contactSchema,
 );
 
 
