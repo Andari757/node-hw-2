@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
-const User = require("../models/user")
+const User = require("../models/user");
 
-const key = "123456"
+const key = "123456";
 
 const authorize = async (req, res, next) => {
     try {
@@ -9,21 +9,27 @@ const authorize = async (req, res, next) => {
         const [bearer, token] = authorization.split(" ");
         if (bearer !== "Bearer") {
             res.status(401);
-            res.send("not ");
-        }
+            res.json({
+                "message": "Not authorized"
+            });
+            return;
+        };
         try {
             const { id } = jwt.verify(token, key);
             const user = await User.findById(id);
-            if (!user) {
+            if (!user || user.token !== token || !user.token) {
                 res.status(401);
-                res.send("not ");
+                res.json({
+                    "message": "Not authorized"
+                });
+                return;
             }
             req.user = user;
             next();
-        } catch (e) { next(e) }
+        } catch (e) { next(e) };
 
     } catch (e) {
-        next(e)
-    }
-}
+        next(e);
+    };
+};
 module.exports = authorize;

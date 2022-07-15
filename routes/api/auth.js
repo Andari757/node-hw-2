@@ -68,7 +68,27 @@ router.post("/login", async (req, res, next) => {
 router.get("/logout", authorize, async (req, res, next) => {
     try {
         const { _id } = req.user;
-        await User.findByIdAndUpdate(id,)
+        const user = await User.findByIdAndUpdate(_id, { token: "" }, { new: true });
+        if (!user) {
+            res.status(401);
+            res.json({
+                "message": "Not authorized"
+            });
+        } else {
+            res.status(204);
+        }
+    } catch (e) {
+        next(e)
+    }
+});
+router.get("/current", authorize, async (req, res, next) => {
+    try {
+        const user = req.user;
+        res.status(200);
+        res.json({
+            email: user.email,
+            subscription: user.subscription
+        });
     } catch (e) {
         next(e)
     }
