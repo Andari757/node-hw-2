@@ -1,94 +1,87 @@
-const { listContacts, getContactById, updateContact, removeContact, addContact } = require('../../models/contacts');
-const express = require('express')
-const Joi = require("joi");
-
+const express = require('express');
+const Contact = require('../../models/contact');
 
 const router = (
   express.Router()
 );
 
 
-const createSchema = Joi.object({
-  name: Joi.string().required(),
-  email: Joi.string().required(),
-  phone: Joi.string().required()
+router.get('/', async (req, res, next) => {
+  const contacts = await Contact.find();
+  res.json(contacts);
 });
 
 
-const updateSchema = createSchema.fork([
-  'name',
-  'email',
-  'phone',
-], key => key.optional());
-
-
-router.get('/', (req, res, next) => {
-  listContacts().then(contacts => {
+router.get('/:contactId', async (req, res, next) => {
+  const contact = await Contact.findOne({ _id: req.params.contactId });
+  if (contact) {
     res.status(200);
-    res.json({ contacts })
-  });
-})
-
-router.get('/:contactId', (req, res, next) => {
-  getContactById(req.params.contactId)
-    .then(contact => {
-      if (contact) {
-        res.status(200);
-        res.json(contact);
-      } else {
-        res.status(404);
-        res.json({ message: 'Not found' });
-      }
-    });
-})
+    res.json(contact);
+  } else {
+    res.status(404);
+    res.json({ message: 'not found' });
+  }
+});
 
 
 router.post('/', async (req, res, next) => {
-  const { error } = createSchema.validate(req.body);
-  if (error) {
-    res.status(400)
-    res.json({ "message": `missing required ${error.message.split(" ")[0]} field` });
-  } else {
-    addContact(req.body).then(contact => res.status(201).send(contact))
+  const contact = new Contact(req.body);
+  try {
+    await contact.save();
+    res.status(201);
+    res.json(contact);
   }
-})
+  catch (e) { next(e) }
+});
+
 
 router.delete('/:contactId', async (req, res, next) => {
-  removeContact(req.params.contactId)
-    .then(targetContact => {
-      if (!targetContact) {
-        res.status(404);
-        res.json({ message: 'Not found' });
-      } else {
-        res.status(200);
-        res.json({ message: 'contact deleted' });
-      }
-    });
-})
+  const contact = await Contact.findOne({ _id: req.params.contactId });
+  if (contact) {
+    await contact.remove();
+    res.status(200);
+    res.json({ message: 'contact successfully removed' });
+  } else {
+    res.status(404);
+    res.json({ message: 'not found' });
+  }
+});
+
 
 router.put('/:contactId', async (req, res, next) => {
-  console.log(req.body);
-  if (Object.keys(req.body).length < 1) {
+  const contact = await Contact.findOne({ _id: req.params.contactId });
+  if (contact) {
+    Object.assign(contact, req.body);
+    await contact.save();
+    res.status(200);
+    res.json(contact);
+  } else {
+    res.status(404);
+    res.json({ message: 'not found' });
+  }
+});
+
+
+router.patch('/:contactId/favorite', async (req, res, next) => {
+  const { favorite } = req.body;
+  if (typeof favorite !== 'boolean') {
     res.status(400);
-    res.json({ message: 'missing fields' });
+    res.json({ message: 'missing field favorite' });
     return;
   }
-  const { error } = updateSchema.validate(req.body);
-  if (error) {
-    res.status(400);
-    res.json({ "message": `missing required ${error.message.split(" ")[0]} field` });
+  const contact = await Contact.findOne({ _id: req.params.contactId });
+  if (contact) {
+    contact.favorite = favorite;
+    await contact.save();
+    res.status(200);
+    res.json(contact);
   } else {
-    updateContact(req.params.contactId, req.body)
-      .then(targetContact => {
-        if (!targetContact) {
-          res.status(404);
-          res.json({ message: 'Not found' });
-        } else {
-          res.status(200);
-          res.json(targetContact);
-        }
-      });
+    res.status(404);
+    res.json({ message: 'not found' });
   }
-})
+});
 
-module.exports = router
+
+module.exports = (
+  router
+);
