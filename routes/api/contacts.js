@@ -1,20 +1,24 @@
 const express = require('express');
 const Contact = require('../../models/contact');
-
+const authorize = require("../../middlewares/authorize")
 const router = (
   express.Router()
 );
 
 
-router.get('/', async (req, res, next) => {
-  const contacts = await Contact.find();
+router.get('/', authorize, async (req, res, next) => {
+  const { _id: owner } = req.user;
+  const contacts = await Contact.find({ owner })
+    .populate("owner", "email");
   res.json(contacts);
 });
 
 
-router.get('/:contactId', async (req, res, next) => {
-  const contact = await Contact.findOne({ _id: req.params.contactId });
-  if (contact) {
+router.get('/:contactId', authorize, async (req, res, next) => {
+  const { _id: owner } = req.user;
+  const contact = await Contact.find({ owner: owner, _id: req.params.contactId })
+    .populate("owner", "email");
+  if (contact.length > 0) {
     res.status(200);
     res.json(contact);
   } else {
@@ -24,9 +28,10 @@ router.get('/:contactId', async (req, res, next) => {
 });
 
 
-router.post('/', async (req, res, next) => {
-  const contact = new Contact(req.body);
+router.post('/', authorize, async (req, res, next) => {
   try {
+    const { _id: owner } = req.user;
+    const contact = await Contact.create({ ...req.body, owner });
     await contact.save();
     res.status(201);
     res.json(contact);
@@ -35,10 +40,10 @@ router.post('/', async (req, res, next) => {
 });
 
 
-router.delete('/:contactId', async (req, res, next) => {
-  const contact = await Contact.findOne({ _id: req.params.contactId });
+router.delete('/:contactId', authorize, async (req, res, next) => {
+  const { _id: owner } = req.user;
+  const contact = await Contact.findOneAndRemove({ owner: owner, _id: req.params.contactId });
   if (contact) {
-    await contact.remove();
     res.status(200);
     res.json({ message: 'contact successfully removed' });
   } else {
@@ -48,7 +53,7 @@ router.delete('/:contactId', async (req, res, next) => {
 });
 
 
-router.put('/:contactId', async (req, res, next) => {
+router.put('/:contactId', authorize, async (req, res, next) => {
   const contact = await Contact.findOne({ _id: req.params.contactId });
   if (contact) {
     Object.assign(contact, req.body);

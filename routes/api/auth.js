@@ -1,7 +1,11 @@
 const bcrypt = require("bcrypt");
 const express = require('express');
 const router = express.Router();
+const jwt = require("jsonwebtoken");
 const User = require('../../models/user');
+const authorize = require("../../middlewares/authorize")
+
+const key = "123456"
 
 router.post('/signup', async (req, res, next) => {
     try {
@@ -45,10 +49,28 @@ router.post("/login", async (req, res, next) => {
             });
             return;
         };
-
+        const payload = { id: user.id };
+        const token = jwt.sign(payload, key);
+        Object.assign(user, { token: token });
+        user.save();
+        res.status(200);
+        res.json({
+            token: token,
+            user: {
+                email: user.email,
+                subscription: user.subscription
+            }
+        });
+    } catch (e) {
+        next(e);
+    };
+});
+router.get("/logout", authorize, async (req, res, next) => {
+    try {
+        const { _id } = req.user;
+        await User.findByIdAndUpdate(id,)
     } catch (e) {
         next(e)
-    };
-})
-
+    }
+});
 module.exports = router;
