@@ -1,94 +1,96 @@
-const { listContacts, getContactById, updateContact, removeContact, addContact } = require('../../models/contacts');
-const express = require('express')
-const Joi = require("joi");
-
-
+const express = require('express');
+const Contact = require('../../models/contact');
+const authorize = require("../../middlewares/authorize")
 const router = (
   express.Router()
 );
 
 
-const createSchema = Joi.object({
-  name: Joi.string().required(),
-  email: Joi.string().required(),
-  phone: Joi.string().required()
+router.get('/', authorize, async (req, res, next) => {
+  const { _id: owner } = req.user;
+  const contacts = await Contact.find({ owner })
+    .populate("owner", "email");
+  res.json(contacts);
 });
 
 
-const updateSchema = createSchema.fork([
-  'name',
-  'email',
-  'phone',
-], key => key.optional());
-
-
-router.get('/', (req, res, next) => {
-  listContacts().then(contacts => {
+router.get('/:contactId', authorize, async (req, res, next) => {
+  const { _id: owner } = req.user;
+  const contact = await Contact.find({ owner: owner, _id: req.params.contactId })
+    .populate("owner", "email");
+  if (contact.length > 0) {
     res.status(200);
-    res.json({ contacts })
-  });
-})
-
-router.get('/:contactId', (req, res, next) => {
-  getContactById(req.params.contactId)
-    .then(contact => {
-      if (contact) {
-        res.status(200);
-        res.json(contact);
-      } else {
-        res.status(404);
-        res.json({ message: 'Not found' });
-      }
-    });
-})
-
-
-router.post('/', async (req, res, next) => {
-  const { error } = createSchema.validate(req.body);
-  if (error) {
-    res.status(400)
-    res.json({ "message": `missing required ${error.message.split(" ")[0]} field` });
+    res.json(contact);
   } else {
-    addContact(req.body).then(contact => res.status(201).send(contact))
+    res.status(404);
+    res.json({ message: 'not found' });
   }
-})
+});
 
-router.delete('/:contactId', async (req, res, next) => {
-  removeContact(req.params.contactId)
-    .then(targetContact => {
-      if (!targetContact) {
-        res.status(404);
-        res.json({ message: 'Not found' });
-      } else {
-        res.status(200);
-        res.json({ message: 'contact deleted' });
-      }
-    });
-})
 
-router.put('/:contactId', async (req, res, next) => {
-  console.log(req.body);
-  if (Object.keys(req.body).length < 1) {
-    res.status(400);
-    res.json({ message: 'missing fields' });
-    return;
+router.post('/', authorize, async (req, res, next) => {
+  try {
+    const { _id: owner } = req.user;
+    const contact = await Contact.create({ ...req.body, owner });
+    await contact.save();
+    res.status(201);
+    res.json(contact);
   }
-  const { error } = updateSchema.validate(req.body);
-  if (error) {
-    res.status(400);
-    res.json({ "message": `missing required ${error.message.split(" ")[0]} field` });
+  catch (e) { next(e) }
+});
+
+
+router.delete('/:contactId', authorize, async (req, res, next) => {
+  try {
+    const { _id: owner } = req.user;
+    const contact = await Contact.findOneAndRemove({ owner: owner, _id: req.params.contactId });
+    if (contact) {
+      res.status(200);
+      res.json({ message: 'contact successfully removed' });
+    } else {
+      res.status(404);
+      res.json({ message: 'not found' });
+    }
+  } catch (e) { next(e) };
+});
+
+
+router.put('/:contactId', authorize, async (req, res, next) => {
+  const { _id: owner } = req.user;
+  const contact = await Contact.findOneAndUpdate({ owner: owner, _id: req.params.contactId }, req.body, { new: true })
+    .populate("owner", "email");
+  if (contact) {
+    res.status(200);
+    res.json(contact);
   } else {
-    updateContact(req.params.contactId, req.body)
-      .then(targetContact => {
-        if (!targetContact) {
-          res.status(404);
-          res.json({ message: 'Not found' });
-        } else {
-          res.status(200);
-          res.json(targetContact);
-        }
-      });
+    res.status(404);
+    res.json({ message: 'not found' });
   }
-})
+});
 
-module.exports = router
+
+router.patch('/:contactId/favorite', authorize, async (req, res, next) => {
+  try {
+    const { _id: owner } = req.user;
+    const { favorite } = req.body;
+    if (typeof favorite !== 'boolean') {
+      res.status(400);
+      res.json({ message: 'missing field favorite' });
+      return;
+    };
+    const contact = await Contact.findOneAndUpdate({ owner: owner, _id: req.params.contactId }, { favorite: favorite }, { new: true })
+      .populate("owner", "email");
+    if (contact) {
+      res.status(200);
+      res.json(contact);
+    } else {
+      res.status(404);
+      res.json({ message: 'not found' });
+    };
+  } catch (e) { next(e) };
+});
+
+
+module.exports = (
+  router
+);
