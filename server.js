@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 const app = require('./app');
-
-const MONGO_URL = 'mongodb+srv://AndriiVeretko:rjOAdagCddCUSIu8@cluster0.gijo3.mongodb.net/db-contacts?retryWrites=true&w=majority';
+require('dotenv').config()
+console.log(process.env.MONGO_URL);
+const { MONGO_URL } = process.env;
 
 const init = async () => {
     try {
@@ -15,5 +16,6 @@ const init = async () => {
         process.exit(1);
     }
 };
+
 init();
 

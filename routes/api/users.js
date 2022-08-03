@@ -1,11 +1,19 @@
 const bcrypt = require("bcrypt");
 const express = require('express');
-const router = express.Router();
 const jwt = require("jsonwebtoken");
-const User = require('../../models/user');
-const authorize = require("../../middlewares/authorize")
+const gravatar = require('gravatar');
+const path = require("path");
+const fs = require("fs/promises");
 
-const key = "123456"
+const jimp = require('jimp');
+
+const uploadAvatar = require('../../middlewares/upload-avatar');
+const authorize = require("../../middlewares/authorize");
+const User = require('../../models/user');
+// const { request } = require("../../app");
+
+const router = express.Router();
+const key = "123456";
 
 router.post('/signup', async (req, res, next) => {
     try {
@@ -25,19 +33,25 @@ router.post('/signup', async (req, res, next) => {
             });
             return;
         };
+
+
         const hashPassword = await bcrypt.hash(password, 10);
-        await User.create({ email, password: hashPassword });
+        const avatarURL = gravatar.url(email);
+        await User.create({ email, avatarURL, password: hashPassword });
+
         res.status(201);
         res.json({
             user: {
-                email: email,
-                subscription: "starter"
+                email,
+                subscription: "starter",
+                avatarURL,
             }
         });
     } catch (e) {
         next(e);
     };
 });
+
 router.post("/login", async (req, res, next) => {
     try {
         const { email, password } = req.body;
@@ -65,6 +79,7 @@ router.post("/login", async (req, res, next) => {
         next(e);
     };
 });
+
 router.get("/logout", authorize, async (req, res, next) => {
     try {
         const { _id } = req.user;
@@ -81,6 +96,7 @@ router.get("/logout", authorize, async (req, res, next) => {
         next(e)
     }
 });
+
 router.get("/current", authorize, async (req, res, next) => {
     try {
         const user = req.user;
@@ -93,4 +109,29 @@ router.get("/current", authorize, async (req, res, next) => {
         next(e)
     }
 });
+const avatarsDir = path.join(__dirname, "../../", "public", "avatars");
+router.patch("/avatars", authorize, uploadAvatar.single("avatar"), async(req, res, next)=> {
+    const {_id} = req.user;
+    
+    try {
+        const {path: tempUpload, filename} = req.file;        
+        const parts = filename.split('.');
+        const extension = parts[parts.length - 1];           
+        const newFileName = `${_id}.${extension}`;
+        const resultUpload = path.join(avatarsDir, newFileName);
+        await fs.rename(tempUpload, resultUpload);
+        const avatarURL = path.join("avatars", newFileName);
+        await User.findByIdAndUpdate(_id, {avatarURL});  
+        const image = await jimp.read(resultUpload);
+        image.resize(250,250, function(err){
+        if (err) throw err;
+        })
+        res.json({
+            avatarURL
+        })
+    } catch (error) {
+        next(error);
+    }
+});
+
 module.exports = router;
