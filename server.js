@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const app = require('./app');
 require('dotenv').config()
-console.log(process.env.MONGO_URL);
 const { MONGO_URL } = process.env;
 
 const init = async () => {
