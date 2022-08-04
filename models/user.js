@@ -26,6 +26,13 @@ const userSchema = Schema({
         type: String,
         default: null,
     },
+    verificationToken :{ 
+        type: String,
+        required: [true, 'Verify token is required'],},
+    verify:{
+        type: Boolean,
+        enum: [true, false],
+        default: false,}
 }, { versionKey: false });
 
 const User = model("user", userSchema);
